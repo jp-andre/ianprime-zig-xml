@@ -1892,6 +1892,32 @@ test skipDocument {
     try expectEqual(.eof, try reader.read());
 }
 
+test skipDoctype {
+    var static_reader: xml.Reader.Static = .init(
+        std.testing.allocator,
+        @embedFile("testdata/tiger.svg"),
+        .{ .try_skip_doctype = true },
+    );
+    defer static_reader.deinit();
+    const reader = &static_reader.interface;
+
+    while (true) {
+        const node = reader.read() catch |err| switch (err) {
+            error.MalformedXml => {
+                const loc = reader.errorLocation();
+                std.log.err("{}:{}: {}", .{ loc.line, loc.column, reader.errorCode() });
+                return error.MalformedXml;
+            },
+            else => |other| return other,
+        };
+
+        switch (node) {
+            .eof => break,
+            else => {},
+        }
+    }
+}
+
 fn readXmlDeclarationContent(reader: *Reader) !void {
     while (true) {
         try reader.readSpace();

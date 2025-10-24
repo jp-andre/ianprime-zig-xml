@@ -1,5 +1,14 @@
 # zig-xml
 
+## This is a fork
+
+Source:
+- https://github.com/ianprime0509/zig-xml
+
+This fork adds an option `.try_skip_doctype`. Quick fix, not high quality.
+
+## Original README
+
 zig-xml is an XML library for Zig, currently supporting Zig 0.15.0 and the
 latest master at the time of writing.
 

@@ -46,6 +46,15 @@ pub fn build(b: *Build) void {
     const example_reader_install = b.addInstallArtifact(example_reader_exe, .{});
     install_examples_step.dependOn(&example_reader_install.step);
 
+    const run_reader_step = b.step("run-reader", "Run the reader example");
+    run_reader_step.dependOn(&example_reader_exe.step);
+    const run_reader_example = b.addRunArtifact(example_reader_exe);
+    // run_reader_example.step.dependOn(b.getInstallStep());
+    if (b.args) |args| {
+        run_reader_example.addArgs(args);
+    }
+    run_reader_step.dependOn(&run_reader_example.step);
+
     const example_canonicalize_mod = b.createModule(.{
         .root_source_file = b.path("examples/canonicalize.zig"),
         .target = target,

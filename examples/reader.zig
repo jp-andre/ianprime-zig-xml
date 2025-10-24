@@ -17,7 +17,9 @@ pub fn main() !void {
     defer input_file.close();
     var input_buf: [4096]u8 = undefined;
     var input_reader = input_file.reader(&input_buf);
-    var streaming_reader: xml.Reader.Streaming = .init(gpa, &input_reader.interface, .{});
+    var streaming_reader: xml.Reader.Streaming = .init(gpa, &input_reader.interface, .{
+        .try_skip_doctype = true,
+    });
     defer streaming_reader.deinit();
     const reader = &streaming_reader.interface;
 

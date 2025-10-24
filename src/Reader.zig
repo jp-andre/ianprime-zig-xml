@@ -115,6 +115,8 @@ pub const Options = struct {
     location_aware: bool = true,
     /// Whether the reader may assume that its input data is valid UTF-8.
     assume_valid_utf8: bool = false,
+    /// Whether to silently skip DOCTYPE declarations (might still fail).
+    try_skip_doctype: bool = false,
 };
 
 pub const Node = enum {
@@ -1613,7 +1615,11 @@ pub fn read(reader: *Reader) ReadError!Node {
                 try reader.checkComment();
                 break :node .comment;
             } else if (try reader.readMatch("<!DOCTYPE")) {
-                return reader.fatal(.doctype_unsupported, reader.pos);
+                if (reader.options.try_skip_doctype) {
+                    try reader.skipDoctype();
+                } else {
+                    return reader.fatal(.doctype_unsupported, reader.pos);
+                }
             }
             reader.state = .after_doctype;
             continue :node reader.state;
@@ -2397,6 +2403,52 @@ fn readSpace(reader: *Reader) !void {
                 else => return,
             }
         }
+        try reader.more();
+        if (reader.pos == reader.buf.len) return;
+    }
+}
+
+fn skipDoctype(reader: *Reader) !void {
+    var brackets: i32 = 0;
+    var inside_doublequotes = false;
+    var inside_singlequotes = false;
+    var escaping = false;
+
+    while (reader.pos < reader.buf.len) {
+        switch (reader.buf[reader.pos]) {
+            '\\' => {
+                if (inside_doublequotes or inside_singlequotes) {
+                    escaping = !escaping;
+                } else return reader.fatal(.doctype_unsupported, reader.pos);
+            },
+            '[' => {
+                if (!escaping) brackets += 1;
+            },
+            ']' => {
+                if (!escaping) {
+                    brackets -= 1;
+                    if (brackets < 0) return reader.fatal(.doctype_unsupported, reader.pos);
+                }
+            },
+            '"' => {
+                if (!escaping and !inside_singlequotes) {
+                    inside_doublequotes = !inside_doublequotes;
+                }
+            },
+            '\'' => {
+                if (!escaping and !inside_doublequotes) {
+                    inside_singlequotes = !inside_singlequotes;
+                }
+            },
+            '>' => {
+                if (!(escaping or inside_doublequotes or inside_singlequotes or brackets > 0)) {
+                    reader.pos += 1;
+                    return;
+                }
+            },
+            else => {},
+        }
+        reader.pos += 1;
         try reader.more();
         if (reader.pos == reader.buf.len) return;
     }
